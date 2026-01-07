@@ -2,47 +2,41 @@
 <html lang="km">
 <head>
   <meta charset="UTF-8" />
-  <title>POS Khmer (Edit + Delete)</title>
+  <title>POS Khmer (Editable + QR + Save PNG)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
   <style>
-    @media print {
-      body * { visibility: hidden; }
-      #receipt, #receipt * { visibility: visible; }
-      #receipt { position:absolute; left:0; top:0; width:100%; }
-      button { display:none; }
-    }
+    @media print { #receipt { display:none; } }
   </style>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-gray-100 p-4">
 
 <div class="max-w-5xl mx-auto bg-white p-6 rounded-xl shadow">
 
-  <h1 class="text-3xl font-bold text-center mb-6"> ប្រព័ន្ធលក់ (POS)</h1>
+  <h1 class="text-3xl font-bold text-center mb-6">ប្រព័ន្ធលក់ (POS)</h1>
 
   <!-- Customer Name -->
   <div class="mb-4">
     <input id="customer" placeholder="ឈ្មោះអតិថិជន" class="border p-2 rounded w-full">
   </div>
 
-  <!-- INPUT -->
+  <!-- Input Product -->
   <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
     <input id="name" placeholder="ឈ្មោះទំនិញ" class="border p-2 rounded">
     <input id="price" type="number" placeholder="តម្លៃ (៛)" class="border p-2 rounded">
     <input id="qty" type="number" placeholder="ចំនួន" class="border p-2 rounded">
-    <button onclick="addProduct()" class="bg-green-600 text-white rounded px-4 py-2 hover:bg-green-700">
-      បន្ថែម
-    </button>
+    <button onclick="addProduct()" class="bg-green-600 text-white rounded px-4 py-2 hover:bg-green-700">បន្ថែម</button>
   </div>
 
-  <!-- SEARCH -->
+  <!-- Search -->
   <div class="flex gap-2 mb-4">
     <input id="search" placeholder="ស្វែងរកឈ្មោះទំនិញ" class="border p-2 rounded w-full">
     <button onclick="searchProduct()" class="bg-blue-600 text-white px-4 rounded">ស្វែងរក</button>
   </div>
 
-  <!-- TABLE -->
+  <!-- Table -->
   <div class="overflow-x-auto">
     <table class="w-full border">
       <thead class="bg-gray-200">
@@ -51,26 +45,24 @@
           <th class="border p-2">តម្លៃ</th>
           <th class="border p-2">ចំនួន</th>
           <th class="border p-2">សរុប</th>
-          <th class="border p-2">កែ/លុប</th>
+          <th class="border p-2">លុប</th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
     </table>
   </div>
 
-  <!-- TOTAL -->
+  <!-- Total -->
   <div class="text-right mt-4">
     <h2 id="grandTotal" class="text-2xl font-bold">តម្លៃសរុប: 0 ៛</h2>
   </div>
 
-  <!-- BUTTON -->
-  <button onclick="showReceipt()" class="mt-4 bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700">
-    បង្ហាញវិក័យប័ត្រ
-  </button>
+  <!-- Show Receipt -->
+  <button onclick="showReceipt()" class="mt-4 bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700">បង្ហាញវិក័យប័ត្រ</button>
 </div>
 
-<!-- ================= RECEIPT ================= -->
-<div id="receipt" class="hidden max-w-md mx-auto bg-white mt-10 p-6 shadow border">
+<!-- Receipt -->
+<div id="receipt" class="hidden max-w-md mx-auto bg-white mt-6 p-6 shadow rounded">
   <h2 class="text-center text-xl font-bold">វិក័យប័ត្រ</h2>
   <p class="text-center text-sm mb-2" id="receiptDate"></p>
   <p class="text-center text-sm mb-2">អតិថិជន: <span id="receiptCustomer"></span></p>
@@ -101,7 +93,7 @@
   <p class="text-center text-xs mt-4">សូមអរគុណសម្រាប់ការទិញ!</p>
 
   <div class="flex gap-2 mt-4">
-    <button onclick="window.print()" class="w-full bg-blue-600 text-white py-2 rounded">បោះពុម្ព / រក្សាទុកជា PDF</button>
+    <button onclick="downloadReceipt()" class="w-full bg-green-600 text-white py-2 rounded">ទាញយកជា PNG</button>
     <button onclick="hideReceipt()" class="w-full bg-gray-400 text-white py-2 rounded">បិទ</button>
   </div>
 </div>
@@ -110,129 +102,132 @@
 let cart = [];
 let grandTotal = 0;
 
-/* បន្ថែមទំនិញ */
+/* Add Product */
 function addProduct() {
   const name = document.getElementById("name").value.trim();
   const price = Number(document.getElementById("price").value);
   const qty = Number(document.getElementById("qty").value);
-  if (!name || price <= 0 || qty <= 0) { alert("សូមបញ្ចូលព័ត៌មានទំនិញឲ្យបានត្រឹមត្រូវ"); return; }
-
-  const total = price * qty;
+  if(!name || price<=0 || qty<=0){ alert("សូមបញ្ចូលព័ត៌មានត្រឹមត្រូវ"); return; }
+  const total = price*qty;
   grandTotal += total;
-  cart.push({ name, price, qty, total });
+  cart.push({name, price, qty, total});
   renderTable();
   updateTotal();
   clearInput();
 }
 
-/* បង្ហាញតារាង */
-function renderTable() {
+/* Render Table with editable inputs */
+function renderTable(){
   const body = document.getElementById("tableBody");
-  body.innerHTML = "";
-
-  cart.forEach((item, index) => {
+  body.innerHTML="";
+  cart.forEach((item,index)=>{
     body.innerHTML += `
       <tr class="text-center">
         <td class="border p-2">${item.name}</td>
-        <td class="border p-2">${item.price.toLocaleString()} ៛</td>
-        <td class="border p-2">${item.qty}</td>
+        <td class="border p-2">
+          <input type="number" value="${item.price}" class="w-20 text-center border rounded" onchange="updateItem(${index},'price',this.value)">
+        </td>
+        <td class="border p-2">
+          <input type="number" value="${item.qty}" class="w-16 text-center border rounded" onchange="updateItem(${index},'qty',this.value)">
+        </td>
         <td class="border p-2">${item.total.toLocaleString()} ៛</td>
-        <td class="border p-2 flex gap-1 justify-center">
-          <button onclick="editItem(${index})" class="bg-yellow-400 px-2 rounded">កែ</button>
-          <button onclick="deleteItem(${index})" class="bg-red-600 px-2 text-white rounded">លុប</button>
+        <td class="border p-2">
+          <button onclick="deleteItem(${index})" class="bg-red-600 text-white px-2 rounded">លុប</button>
         </td>
       </tr>
     `;
   });
 }
 
-/* Edit Item */
-function editItem(index) {
-  const item = cart[index];
-  const newPrice = Number(prompt("កែតម្លៃ (៛):", item.price));
-  const newQty = Number(prompt("កែចំនួន:", item.qty));
-  if (isNaN(newPrice) || isNaN(newQty) || newPrice <= 0 || newQty <= 0) return;
-  grandTotal -= item.total;
-  item.price = newPrice;
-  item.qty = newQty;
-  item.total = newPrice * newQty;
-  grandTotal += item.total;
+/* Update item inline */
+function updateItem(index,field,value){
+  value = Number(value);
+  if(isNaN(value)||value<=0) return;
+  grandTotal -= cart[index].total;
+  if(field==='price') cart[index].price=value;
+  if(field==='qty') cart[index].qty=value;
+  cart[index].total = cart[index].price*cart[index].qty;
+  grandTotal += cart[index].total;
   renderTable();
   updateTotal();
 }
 
-/* Delete Item */
-function deleteItem(index) {
+/* Delete item */
+function deleteItem(index){
   grandTotal -= cart[index].total;
   cart.splice(index,1);
   renderTable();
   updateTotal();
 }
 
-/* ស្វែងរក */
-function searchProduct() {
+/* Search */
+function searchProduct(){
   const keyword = document.getElementById("search").value.toLowerCase();
   renderTable();
-  if (!keyword) return;
-  const body = document.getElementById("tableBody");
-  body.innerHTML = "";
-  cart.filter(p => p.name.toLowerCase().includes(keyword)).forEach((item,index) => {
-    body.innerHTML += `
-      <tr class="text-center">
-        <td class="border p-2">${item.name}</td>
-        <td class="border p-2">${item.price.toLocaleString()} ៛</td>
-        <td class="border p-2">${item.qty}</td>
-        <td class="border p-2">${item.total.toLocaleString()} ៛</td>
-        <td class="border p-2 flex gap-1 justify-center">
-          <button onclick="editItem(${index})" class="bg-yellow-400 px-2 rounded">កែ</button>
-          <button onclick="deleteItem(${index})" class="bg-red-600 px-2 text-white rounded">លុប</button>
-        </td>
-      </tr>
-    `;
-  });
+  if(!keyword) return;
+  const body=document.getElementById("tableBody");
+  body.innerHTML="";
+  cart.filter(p=>p.name.toLowerCase().includes(keyword))
+      .forEach((item,index)=>{
+        body.innerHTML += `
+          <tr class="text-center">
+            <td class="border p-2">${item.name}</td>
+            <td class="border p-2">
+              <input type="number" value="${item.price}" class="w-20 text-center border rounded" onchange="updateItem(${index},'price',this.value)">
+            </td>
+            <td class="border p-2">
+              <input type="number" value="${item.qty}" class="w-16 text-center border rounded" onchange="updateItem(${index},'qty',this.value)">
+            </td>
+            <td class="border p-2">${item.total.toLocaleString()} ៛</td>
+            <td class="border p-2">
+              <button onclick="deleteItem(${index})" class="bg-red-600 text-white px-2 rounded">លុប</button>
+            </td>
+          </tr>
+        `;
+      });
 }
 
-/* Update Total */
-function updateTotal() {
-  document.getElementById("grandTotal").innerText = `តម្លៃសរុប: ${grandTotal.toLocaleString()} ៛`;
-}
+/* Update total */
+function updateTotal(){ document.getElementById("grandTotal").innerText=`តម្លៃសរុប: ${grandTotal.toLocaleString()} ៛`;}
 
-/* Clear Input */
-function clearInput() {
-  document.getElementById("name").value="";
-  document.getElementById("price").value="";
-  document.getElementById("qty").value="";
-}
+/* Clear input */
+function clearInput(){ document.getElementById("name").value=""; document.getElementById("price").value=""; document.getElementById("qty").value=""; }
 
 /* Show Receipt */
-function showReceipt() {
-  if (cart.length===0){ alert("មិនទាន់មានទំនិញទេ"); return;}
+function showReceipt(){
+  if(cart.length===0){ alert("មិនទាន់មានទំនិញទេ"); return; }
   const customer = document.getElementById("customer").value.trim() || "មិនមានឈ្មោះ";
   document.getElementById("receipt").classList.remove("hidden");
   document.getElementById("receiptDate").innerText = new Date().toLocaleString();
   document.getElementById("receiptCustomer").innerText = customer;
 
   const body = document.getElementById("receiptBody");
-  body.innerHTML = "";
+  body.innerHTML="";
   cart.forEach(item=>{
-    body.innerHTML += `
-      <tr>
-        <td>${item.name}</td>
-        <td class="text-center">${item.qty}</td>
-        <td class="text-right">${item.total.toLocaleString()} ៛</td>
-      </tr>
-    `;
+    body.innerHTML += `<tr>
+      <td>${item.name}</td>
+      <td class="text-center">${item.qty}</td>
+      <td class="text-right">${item.total.toLocaleString()} ៛</td>
+    </tr>`;
   });
   document.getElementById("receiptTotal").innerText = grandTotal.toLocaleString() + " ៛";
 
   // Generate QR
-  const qrText = `អតិថិជន: ${customer}\nសរុប: ${grandTotal.toLocaleString()} ៛`;
+  const qrText=`អតិថិជន: ${customer}\nសរុប: ${grandTotal.toLocaleString()} ៛`;
   QRCode.toCanvas(document.getElementById("bakongQR"), qrText, {width:150});
 }
 
-/* Hide Receipt */
-function hideReceipt() {
-  document.getElementById("receipt").classList.add("hidden");
+/* Hide receipt */
+function hideReceipt(){ document.getElementById("receipt").classList.add("hidden"); }
+
+/* Download receipt as PNG */
+function downloadReceipt(){
+  html2canvas(document.getElementById("receipt")).then(canvas=>{
+    const link=document.createElement("a");
+    link.download="receipt.png";
+    link.href=canvas.toDataURL("image/png");
+    link.click();
+  });
 }
 </script>
 

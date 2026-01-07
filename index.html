@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8" />
+  <title>ប្រព័ន្ធលក់ (POS)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #receipt, #receipt * {
+        visibility: visible;
+      }
+      #receipt {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 p-6">
+
+<div class="max-w-5xl mx-auto bg-white p-6 rounded-xl shadow">
+
+  <h1 class="text-3xl font-bold text-center mb-6"> ប្រព័ន្ធលក់ (POS)</h1>
+
+  <!-- INPUT -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+    <input id="name" placeholder="ឈ្មោះទំនិញ" class="border p-2 rounded">
+    <input id="price" type="number" placeholder="តម្លៃ (៛)" class="border p-2 rounded">
+    <input id="qty" type="number" placeholder="ចំនួន" class="border p-2 rounded">
+
+    <button onclick="addProduct()"
+      class="bg-green-600 text-white rounded px-4 py-2 hover:bg-green-700">
+      បន្ថែម
+    </button>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="flex gap-2 mb-4">
+    <input id="search" placeholder="ស្វែងរកឈ្មោះទំនិញ" class="border p-2 rounded w-full">
+    <button onclick="searchProduct()" class="bg-blue-600 text-white px-4 rounded">
+      ស្វែងរក
+    </button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="overflow-x-auto">
+    <table class="w-full border">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="border p-2">ឈ្មោះ</th>
+          <th class="border p-2">តម្លៃ</th>
+          <th class="border p-2">ចំនួន</th>
+          <th class="border p-2">សរុប</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- TOTAL -->
+  <div class="text-right mt-4">
+    <h2 id="grandTotal" class="text-2xl font-bold">តម្លៃសរុប: 0 ៛</h2>
+  </div>
+
+  <!-- BUTTON -->
+  <button onclick="showReceipt()"
+    class="mt-4 bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700">
+    បង្ហាញវិក័យប័ត្រ
+  </button>
+</div>
+
+<!-- ================= RECEIPT ================= -->
+<div id="receipt" class="hidden max-w-md mx-auto bg-white mt-10 p-6 shadow border">
+
+  <h2 class="text-center text-xl font-bold">វិក័យប័ត្រ</h2>
+  <p class="text-sm text-center mb-2" id="receiptDate"></p>
+
+  <hr class="my-2 border-dashed">
+
+  <table class="w-full text-sm">
+    <thead>
+      <tr>
+        <th class="text-left">ទំនិញ</th>
+        <th class="text-center">ចំនួន</th>
+        <th class="text-right">សរុប</th>
+      </tr>
+    </thead>
+    <tbody id="receiptBody"></tbody>
+  </table>
+
+  <hr class="my-2 border-dashed">
+
+  <div class="text-right font-bold text-lg">
+    តម្លៃសរុប: <span id="receiptTotal">0 ៛</span>
+  </div>
+
+  <p class="text-center text-xs mt-4">សូមអរគុណសម្រាប់ការទិញ!</p>
+
+  <div class="flex gap-2 mt-4">
+    <button onclick="window.print()" class="w-full bg-blue-600 text-white py-2 rounded">
+      បោះពុម្ព / រក្សាទុកជា PDF
+    </button>
+    <button onclick="hideReceipt()" class="w-full bg-gray-400 text-white py-2 rounded">
+      បិទ
+    </button>
+  </div>
+</div>
+
+<script>
+let cart = [];
+let grandTotal = 0;
+
+/* បន្ថែមទំនិញ */
+function addProduct() {
+  const name = document.getElementById("name").value.trim();
+  const price = Number(document.getElementById("price").value);
+  const qty = Number(document.getElementById("qty").value);
+
+  if (!name || price <= 0 || qty <= 0) {
+    alert("សូមបញ្ចូលព័ត៌មានទំនិញឲ្យបានត្រឹមត្រូវ");
+    return;
+  }
+
+  const total = price * qty;
+  grandTotal += total;
+
+  cart.push({ name, price, qty, total });
+
+  renderTable();
+  updateTotal();
+  clearInput();
+}
+
+/* បង្ហាញតារាង */
+function renderTable() {
+  const body = document.getElementById("tableBody");
+  body.innerHTML = "";
+
+  cart.forEach(item => {
+    body.innerHTML += `
+      <tr class="text-center">
+        <td class="border p-2">${item.name}</td>
+        <td class="border p-2">${item.price.toLocaleString()} ៛</td>
+        <td class="border p-2">${item.qty}</td>
+        <td class="border p-2">${item.total.toLocaleString()} ៛</td>
+      </tr>
+    `;
+  });
+}
+
+/* ស្វែងរក */
+function searchProduct() {
+  const keyword = document.getElementById("search").value.toLowerCase();
+  renderTable();
+  if (!keyword) return;
+
+  const body = document.getElementById("tableBody");
+  body.innerHTML = "";
+
+  cart.filter(p => p.name.toLowerCase().includes(keyword))
+      .forEach(item => {
+        body.innerHTML += `
+          <tr class="text-center">
+            <td class="border p-2">${item.name}</td>
+            <td class="border p-2">${item.price.toLocaleString()} ៛</td>
+            <td class="border p-2">${item.qty}</td>
+            <td class="border p-2">${item.total.toLocaleString()} ៛</td>
+          </tr>
+        `;
+      });
+}
+
+/* តម្លៃសរុប */
+function updateTotal() {
+  document.getElementById("grandTotal").innerText =
+    `តម្លៃសរុប: ${grandTotal.toLocaleString()} ៛`;
+}
+
+/* សម្អាត input */
+function clearInput() {
+  document.getElementById("name").value = "";
+  document.getElementById("price").value = "";
+  document.getElementById("qty").value = "";
+}
+
+/* បង្ហាញវិក័យប័ត្រ */
+function showReceipt() {
+  if (cart.length === 0) {
+    alert("មិនទាន់មានទំនិញទេ");
+    return;
+  }
+
+  document.getElementById("receipt").classList.remove("hidden");
+  document.getElementById("receiptDate").innerText =
+    new Date().toLocaleString();
+
+  const body = document.getElementById("receiptBody");
+  body.innerHTML = "";
+
+  cart.forEach(item => {
+    body.innerHTML += `
+      <tr>
+        <td>${item.name}</td>
+        <td class="text-center">${item.qty}</td>
+        <td class="text-right">${item.total.toLocaleString()} ៛</td>
+      </tr>
+    `;
+  });
+
+  document.getElementById("receiptTotal").innerText =
+    grandTotal.toLocaleString() + " ៛";
+}
+
+/* បិទវិក័យប័ត្រ */
+function hideReceipt() {
+  document.getElementById("receipt").classList.add("hidden");
+}
+</script>
+
+</body>
+</html>
